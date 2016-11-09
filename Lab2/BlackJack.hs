@@ -2,8 +2,6 @@ module BlackJack where
 import Cards
 import RunGame
 
-
-
 {-Task 3.1-}
 {-
 size hand2
@@ -18,32 +16,44 @@ size hand2
 
 {-Task 3.4-}
 
--- Returns an empty hand
+-- | Returns an empty hand
 empty :: Hand
 empty = Empty
 
--- Calculates the value of a given hand, 
--- where the value is the sum of all cards rank
+-- | Returns the value of a given hand by summarizing the rank of all
+-- | cards.
 value :: Hand -> Integer
-value h = if v > 21 then v - 10 * a else v
-    where (v, a) = valueHelper h
+value h = if v > 21 then v - 10 * numberOfAces h else v
+    where v = sumHand h
 
--- Helper function for value, keeping track of the number of aces in the hand
-valueHelper :: Hand -> (Integer, Integer)
-valueHelper Empty = (0, 0)
-valueHelper (Add (Card (Numeric n) _) h) = (v + n, a)
-    where (v, a) = valueHelper h
-valueHelper (Add (Card Ace _) h) =  (v + 11, a + 1)
-    where (v, a) = valueHelper h
-valueHelper (Add (Card _ _) h) = (v + 10, a)
-    where (v, a) = valueHelper h
+-- | Returns the value of a card.
+valueCard :: Card -> Integer
+valueCard c = valueRank $ rank c
 
--- Tells if a hand is busted
+-- | Returns the value of a rank.
+valueRank :: Rank -> Integer
+valueRank (Numeric n) = n
+valueRank Ace = 11
+valueRank _ = 10
+
+-- | Returns the number of aces in a given hand.
+numberOfAces :: Hand -> Integer
+numberOfAces Empty = 0
+numberOfAces (Add (Card Ace _s) h) = 1 + numberOfAces h
+numberOfAces (Add _c h) = numberOfAces h
+
+
+-- | Sums the value of each card in a hand.
+sumHand :: Hand -> Integer
+sumHand Empty = 0
+sumHand (Add c h) = valueCard c + sumHand h
+
+-- Determines wether a hand has gone bust.
 gameOver :: Hand -> Bool
 gameOver h | value h <= 21 = False
 gameOver _ = True
 
--- Determine whose hand will win
+-- Determine whose hand will win.
 winner :: Hand -> Hand -> Player
 winner g _ | gameOver g = Bank
 winner _ b | gameOver b = Guest
