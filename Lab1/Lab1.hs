@@ -33,9 +33,36 @@ power2 n k = n * power2 n (k-1)
 {-----Part 4------}
 
 {-A-}
-{-Test cases: no test case where k is lesser than 0 since the functions are not defined then. -}
+{-
+
+Test cases: 
+
+P : (0,0)
+Q : (32, 54)
+R : (-43, 22)
+S : (32, 53)
+T : (-43, 21)
+
+Motivation: 
+
+We do not have any test cases where 'k' is smaller than zero since our 
+functions are not defined for this. We defined test case 'P' to test the 
+smallest value of k (edge case) and the matching patterns where 'k' is zero in
+'power' and 'power2'. For all the defined power functions we also want to 
+ensure that they compute the correct result for both positive and negative 
+values. To test this we define 'Q' with an arbitrary postive value for 'n' and
+'R' with and arbitray negative value for 'n'.
+
+Finally, in 'power2' we have different matching cases for even and uneven
+values of 'k' that we need to test. We already test the case where 'k' is even
+with both positive and negative values of 'n' in our test cases 'Q' and 'R'.
+What remains is to test both positive and negative values but with an uneven
+value of 'k'. This is achieved with test cases 'S' and 'T'.
+
+
+-}
 testCases :: [(Integer, Integer)]
-testCases = [(0,0), (6,0), (0,11), (32, 54), (43, 21)]
+testCases = [(0,0), (32,54), (-43,22), (32, 53), (-43, 21)]
 
 {-B-}
 prop_powers :: Integer -> Integer -> Bool
@@ -50,7 +77,4 @@ powerTestCases = and [ prop_powers n k | (n, k) <- testCases]
 
 {-D-}
 prop_powers' :: Integer -> Integer -> Property
-prop_powers' n k = k >= 0 ==> a1==a2 && a2==a3 
-    where a1 = power n k
-          a2 = power1 n k
-          a3 = power2 n k
+prop_powers' n k = k >= 0 ==> prop_powers n k
