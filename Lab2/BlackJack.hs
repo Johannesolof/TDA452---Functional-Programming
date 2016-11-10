@@ -49,8 +49,7 @@ sumHand (Add c h) = valueCard c + sumHand h
 
 -- | Determines wether a hand has gone bust.
 gameOver :: Hand -> Bool
-gameOver h | value h <= 21 = False
-gameOver _ = True
+gameOver h = value h <= 21
 
 -- | Determine whose hand will win.
 winner :: Hand -> Hand -> Player
