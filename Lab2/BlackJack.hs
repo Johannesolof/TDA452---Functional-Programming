@@ -53,10 +53,12 @@ gameOver h = value h <= 21
 
 -- | Determine whose hand will win.
 winner :: Hand -> Hand -> Player
-winner g _ | gameOver g = Bank
-winner _ b | gameOver b = Guest
-winner g b | value g > value b = Guest
-winner _ _ = Bank
+winner g b | gameOver g        = Bank
+           | gameOver b        = Guest
+           | value g > value b = Guest
+           | otherwise         = Bank
+
+-- * Part B
 
 hand1 = Add (Card (Numeric 5) Spades) Empty
 hand2 = Add (Card (Numeric 2) Hearts) (Add (Card Jack Spades) Empty)
@@ -68,15 +70,14 @@ hand3 = Add (Card Ace Hearts) (Add (Card (Numeric 4) Spades) (Add (Card Queen Di
 (<+) _ Empty = Empty
 
 prop_onTopOf_assoc :: Hand -> Hand -> Hand -> Bool
-prop_onTopOf_assoc p1 p2 p3 =
-    p1<+(p2<+p3) == (p1<+p2)<+p3
+prop_onTopOf_assoc p1 p2 p3 = p1<+(p2<+p3) == (p1<+p2)<+p3
 
 prop_size_onTopOf :: Hand -> Hand -> Bool
 prop_size_onTopOf h1 h2 = size (h1 <+ h2) == (size h1 + size h2)
 
 fullDeck :: Hand
 fullDeck = fullSuit Hearts <+ fullSuit Spades <+ 
-  fullSuit Diamonds <+ fullSuit Clubs
+           fullSuit Diamonds <+ fullSuit Clubs
 
 fullSuit :: Suit -> Hand
 fullSuit s = buildSuit s Empty
@@ -95,3 +96,13 @@ buildSuit s h@(Add (Card (Numeric n) _) _) =
   buildSuit s (Add (Card (Numeric (n + 1)) s) h)
 buildSuit s Empty = 
   buildSuit s (Add (Card (Numeric 2) s) Empty)
+
+draw :: Hand -> Hand -> (Hand,Hand)
+draw Empty _h    = error "draw: The deck is empty."
+draw (Add c d) h = (d, Add c h) 
+
+playBank :: Hand -> Hand
+playBank deck = bankDraw (deck, Empty)
+  where bankDraw (d, h) | value h >= 16 = h
+                        | otherwise     = bankDraw $ draw d h
+                        
