@@ -63,12 +63,14 @@ winner g b | gameOver g        = Bank
 
 -- * Part B
 
+hand1 = Add (Card (Numeric 5) Spades) Empty
+hand2 = Add (Card (Numeric 2) Hearts) (Add (Card Jack Spades) Empty)
+hand3 = Add (Card Ace Hearts) (Add (Card (Numeric 4) Spades) (Add (Card Queen Diamonds) Empty))
 
 -- | OnTopOf: Puts one hand ontop of another hand 
 (<+) :: Hand -> Hand -> Hand
 (<+) (Add c h1) h2 = Add c (h1 <+ h2)
-(<+) Empty (Add c h2) = Add c (Empty <+ h2)
-(<+) _ Empty = Empty
+(<+) Empty h2 = h2
 
 -- | Property: Associativity of operator (<+) 
 prop_onTopOf_assoc :: Hand -> Hand -> Hand -> Bool
@@ -85,21 +87,12 @@ fullDeck = fullSuit Hearts <+ fullSuit Spades <+
 
 -- | Returns a hand of cards with all ranks of one suit
 fullSuit :: Suit -> Hand
-fullSuit s = buildSuit s Empty
-  where
-    buildSuit _ h@(Add (Card Ace _) _) = h
-    buildSuit s h@(Add (Card King _) _) = 
-      buildSuit s (Add (Card Ace s) h)
-    buildSuit s h@(Add (Card Queen _) _) = 
-      buildSuit s (Add (Card King s) h)
-    buildSuit s h@(Add (Card Jack _) _) = 
-      buildSuit s (Add (Card Queen s) h)
-    buildSuit s h@(Add (Card (Numeric 10) _) _) = 
-      buildSuit s (Add (Card Jack s) h)
-    buildSuit s h@(Add (Card (Numeric n) _) _) = 
-      buildSuit s (Add (Card (Numeric (n + 1)) s) h)
-    buildSuit s Empty = 
-      buildSuit s (Add (Card (Numeric 2) s) Empty)
+fullSuit suit = foldr Add Empty suitList
+    where suitList = [Card (Numeric rank) suit | rank <- [2..10]] ++
+                     [Card Jack suit, 
+                      Card Queen suit, 
+                      Card King suit, 
+                      Card Ace suit]
 
 -- | Moves the top card of a hand to another hand
 draw :: Hand -> Hand -> (Hand,Hand)
@@ -118,15 +111,18 @@ shuffle g d = shuffler g (d, Empty) (size d)
 
 -- | Helper function for shuffle
 shuffler :: StdGen -> (Hand, Hand) -> Integer -> Hand
-shuffler g (d1, d2) s | s == 0    = d2
-                      | otherwise = shuffler g' (d1', Add c d2) (s-1)
+shuffler g (d1, d2) 0 = d2
+shuffler g (d1, d2) s = shuffler g' (d1', Add c d2) (s-1)
   where (n, g') = randomR (1, s) g
         (c, d1') = removeNth d1 n
-        removeNth d = remove d Empty
-          where remove Empty _h2 _n = error "removeNth: no deck" 
-                remove (Add c h1) h2 i 
-                  | i <=1 = (c, h1 <+ h2)
-                  | otherwise = remove h1 (Add c h2) (i-1)
+
+-- | Removes the Nth card in a hand and returns the removed card 
+-- | and the remaining hand
+removeNth :: Hand -> Integer -> (Card, Hand)
+removeNth Empty _ = error "removeNth: no deck" 
+removeNth d n = remove (d, Empty) n
+  where remove (h1@(Add c h), h2) i | i <=1     = (c, h <+ h2)
+                                    | otherwise = remove (draw h1 h2) (i-1)
 
 -- | Property: The shuffled deck contains the same cards as the 
 -- | unshuffled deck
@@ -143,6 +139,7 @@ belongsTo c (Add c1 h) = (c == c1) || (c `belongsTo` h)
 prop_size_shuffle :: StdGen -> Hand -> Bool
 prop_size_shuffle g h = size (shuffle g h) == size h
 
+{- Task 3.5 -}
 
 implementation = Interface
   { iEmpty    = empty
