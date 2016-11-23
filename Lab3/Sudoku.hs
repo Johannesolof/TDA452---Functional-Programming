@@ -3,6 +3,8 @@ module Sudoku where
 import Test.QuickCheck
 import Data.Char
 import Data.Maybe
+import Data.List
+import Data.List.Split
 
 -------------------------------------------------------------------------
 
@@ -38,7 +40,7 @@ formatSudoku :: Sudoku -> String
 formatSudoku s = unlines $ map (map maybeToChar) (rows s)
 
 maybeToChar :: Maybe Int -> Char
-maybeToChar (Just n)  = chr (n+48)
+maybeToChar (Just n)  = chr (n+offset)
 maybeToChar Nothing   = '.'
 
 -- readSudoku file reads from the file, and either delivers it, or stops
@@ -53,11 +55,17 @@ parseSudoku str =  Sudoku $ map (map charToMaybe) $ lines str
 
 
 charToMaybe :: Char -> Maybe Int
-charToMaybe c | n > 48 && n < 58 = Just (n - 48)
-              | n == 46          = Nothing
-              | otherwise        = error 
+charToMaybe c | n > min && n < max = Just (n - offset)
+              | n == dot           = Nothing
+              | otherwise          = error
                                      ("Not a valid Sudoku character: " ++ [c])
   where n = ord c
+        min = offset
+        max = offset + 10
+        dot = offset - 2
+
+offset :: Int
+offset = ord '0'
 
 -------------------------------------------------------------------------
 
@@ -68,7 +76,7 @@ cell = frequency [(1, genNumber), (9, genNothing)]
 genNothing :: Gen (Maybe Int)
 genNothing = return Nothing
 
-genNumber :: Gen (Maybe Int) 
+genNumber :: Gen (Maybe Int)
 genNumber = elements [Just n|n<-[1..9]]
 
 -- an instance for generating Arbitrary Sudokus
@@ -84,8 +92,28 @@ prop_Sudoku = isSudoku
 
 type Block = [Maybe Int]
 
+isOkay :: Sudoku -> Bool
+isOkay s = all isOkayBlock $ blocks s
+
 isOkayBlock :: Block -> Bool
-isOkayBlock b = length b == length (fromList b)
+isOkayBlock b = length fb == length (nub fb)
+  where fb = filter isJust b
+
+blocks :: Sudoku -> [Block]
+blocks s = concat [rows s, cols, squares]
+  where cols    = transpose $ rows s
+        squares = parseSquares s
+
+parseSquares :: Sudoku -> [Block]
+parseSquares s = [concatMap snd $
+                  filter (\x -> fst x == i) zipped | i <- [0..8]]
+  where zipped = zip indices splitSudoku
+        indices = [ i `mod` 3 + 3 * (i `div` 9) | i <- [0..26]]
+        splitSudoku = chunksOf 3 $ concat $ rows s
+
+
+
+-------------------------------------------------------------------------
 
 example :: Sudoku
 example =
