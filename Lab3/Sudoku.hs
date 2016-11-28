@@ -7,6 +7,7 @@ import Data.List
 import Data.List.Split
 
 -------------------------------------------------------------------------
+-- * Assignment A
 
 data Sudoku = Sudoku { rows :: [[Maybe Int]] }
  deriving ( Show, Eq )
@@ -29,6 +30,7 @@ isSolved :: Sudoku -> Bool
 isSolved s = and [ and [ isJust n | n <- row] | row <- rows s]
 
 -------------------------------------------------------------------------
+-- * -- * Assignment B
 
 -- printSudoku sud prints a representation of the sudoku sud on the screen
 printSudoku :: Sudoku -> IO ()
@@ -36,9 +38,11 @@ printSudoku s = do
   putStrLn $ formatSudoku s
   return ()
 
+-- Formats Sudoku data type into a string representation
 formatSudoku :: Sudoku -> String
 formatSudoku s = unlines $ map (map maybeToChar) (rows s)
 
+-- Formats Maybe Int into char representation
 maybeToChar :: Maybe Int -> Char
 maybeToChar (Just n)  = chr (n+offset)
 maybeToChar Nothing   = '.'
@@ -50,10 +54,11 @@ readSudoku fp = do
                 file <- readFile fp
                 return $ parseSudoku file
 
+-- Parses data from a string into Sudoku data type
 parseSudoku :: String -> Sudoku
 parseSudoku str =  Sudoku $ map (map charToMaybe) $ lines str
 
-
+-- Converts a character into an Maybe integer
 charToMaybe :: Char -> Maybe Int
 charToMaybe c | n > min && n < max = Just (n - offset)
               | n == dot           = Nothing
@@ -64,46 +69,57 @@ charToMaybe c | n > min && n < max = Just (n - offset)
         max = offset + 10
         dot = offset - 2
 
+-- Helper function character parsing
 offset :: Int
 offset = ord '0'
 
 -------------------------------------------------------------------------
+-- * Assignment C
 
--- cell generates an arbitrary cell in a Sudoku
+-- Generates an arbitrary cell
 cell :: Gen (Maybe Int)
 cell = frequency [(1, genNumber), (9, genNothing)]
 
+-- Generates an empty cell
 genNothing :: Gen (Maybe Int)
 genNothing = return Nothing
 
+-- Generates a random number between 1 and 9
 genNumber :: Gen (Maybe Int)
 genNumber = elements [Just n|n<-[1..9]]
 
--- an instance for generating Arbitrary Sudokus
+-- An instance for generating Arbitrary Sudokus
 instance Arbitrary Sudoku where
   arbitrary =
     do rows <- sequence [ sequence [ cell | j <- [1..9] ] | i <- [1..9] ]
        return (Sudoku rows)
 
+-- Property that checks if a Sudoku has valid structure and values
 prop_Sudoku :: Sudoku -> Bool
 prop_Sudoku = isSudoku
 
 -------------------------------------------------------------------------
+-- * Assignment D
 
+-- Represents a row, column or 3x3 block
 type Block = [Maybe Int]
 
+-- Checks that a Sudoku does not have duplicate integers
 isOkay :: Sudoku -> Bool
 isOkay s = all isOkayBlock $ blocks s
 
+-- Checks that a block does not contain duplicate integers
 isOkayBlock :: Block -> Bool
 isOkayBlock b = length fb == length (nub fb)
   where fb = filter isJust b
 
+-- Formats a Sudoku into a list of all existing blocks
 blocks :: Sudoku -> [Block]
 blocks s = concat [rows s, cols, squares]
   where cols    = transpose $ rows s
         squares = parseSquares s
 
+-- Parses and returns all 3x3 blocks in a Sudoku
 parseSquares :: Sudoku -> [Block]
 parseSquares s = [concatMap snd $
                   filter (\x -> fst x == i) zipped | i <- [0..8]]
@@ -111,7 +127,73 @@ parseSquares s = [concatMap snd $
         indices = [ i `mod` 3 + 3 * (i `div` 9) | i <- [0..26]]
         splitSudoku = chunksOf 3 $ concat $ rows s
 
+-------------------------------------------------------------------------
+-- * Assignment D
 
+type Pos = (Int, Int)
+
+newtype ValidPos = ValidPos Pos
+  deriving(Show)
+
+instance Arbitrary ValidPos where
+  arbitrary = do
+    r <- elements [0..8]
+    c <- elements [0..8]
+    return $ ValidPos (r, c)
+
+blanks :: Sudoku -> [Pos]
+blanks s = concat [ [ (i,j) | j <- elemIndices Nothing (rows s !! i) ] |
+                    i <- [0..8] ]
+
+prop_blanks :: Sudoku -> Bool
+prop_blanks s = and [ isNothing (s `at` ps) | ps <- blanks s]
+
+
+(!!=) :: [a] -> (Int,a) -> [a]
+(!!=) as (i, a) = take i as ++ [a] ++ drop (i+1) as
+
+prop_updateAt_length :: [a] -> (Int,a) -> Bool
+prop_updateAt_length as (i, a) = length as == length (as !!= (i,a))
+
+prop_updateAt_exist :: Eq a => [a] -> (Int,a) -> Bool
+prop_updateAt_exist as (i, a) = a `elem` (as !!= (i, a))
+
+-- !!!!!!!!!!!!!!
+prop_updateAt_removed :: Eq a => [a] -> (Int,a) -> Bool
+prop_updateAt_removed = undefined
+
+
+update :: Sudoku -> Pos -> Maybe Int -> Sudoku
+update s p v = Sudoku $ rows s !!= (fst p, row)
+  where row = rows s !! fst p !!= (snd p, v)
+
+-- !!!!!!!!!!!!!!!!!!
+prop_update :: Sudoku -> ValidPos -> Maybe Int -> Bool
+prop_update s (ValidPos p) v = (update s p v `at` p) == v
+
+
+candidates :: Sudoku -> Pos -> [Int]
+candidates s p | isJust (s `at` p) = []
+candidates s p = filter (\i -> Just i `notElem` bs) [1..9]
+  where bs = concat $ getBlocksAt s p
+
+getBlocksAt :: Sudoku -> Pos -> [Block]
+getBlocksAt s (r, c) = [bs !! r ,
+                      bs !! (9 + c),
+                      bs !! (18 + ((r `div` 3) * 3 + (c `div` 3)))]
+  where bs = blocks s
+
+at :: Sudoku -> Pos -> Maybe Int
+at s p = (rows s !! fst p) !! snd p
+
+------------------------------------------------------------------------------
+
+solve :: Sudoku -> Maybe Sudoku
+solve s | not (isSudoku s) || not (isOkay s) = Nothing
+solve s = Just $ solve' s
+
+solve' :: Sudoku -> Sudoku
+solve' s = undefined
 
 -------------------------------------------------------------------------
 
