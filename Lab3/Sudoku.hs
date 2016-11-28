@@ -1,10 +1,12 @@
 module Sudoku where
 
 import Test.QuickCheck
+import Test.QuickCheck.Modifiers
 import Data.Char
 import Data.Maybe
 import Data.List
 import Data.List.Split
+
 
 -------------------------------------------------------------------------
 -- * Assignment A
@@ -159,8 +161,9 @@ prop_updateAt_exist :: Eq a => [a] -> (Int,a) -> Bool
 prop_updateAt_exist as (i, a) = a `elem` (as !!= (i, a))
 
 -- !!!!!!!!!!!!!!
-prop_updateAt_removed :: Eq a => [a] -> (Int,a) -> Bool
-prop_updateAt_removed = undefined
+prop_updateAt_removed :: Eq a => NonEmptyList a -> (NonNegative Int, a) -> Property
+prop_updateAt_removed (NonEmpty as) (NonNegative i, a) = i <= length as ==> prev as == prev (as !!= (i,a))
+  where prev xs = take i xs ++ drop (i+1) xs
 
 
 update :: Sudoku -> Pos -> Maybe Int -> Sudoku
