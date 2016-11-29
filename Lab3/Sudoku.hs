@@ -188,10 +188,8 @@ update :: Sudoku -> Pos -> Maybe Int -> Sudoku
 update s p v = Sudoku $ rows s !!= (fst p, row)
   where row = rows s !! fst p !!= (snd p, v)
 
--- !!!!!!!!!!!!!!!!!!
 prop_update :: Sudoku -> ValidPos -> Maybe Int -> Bool
 prop_update s (ValidPos p) v = (update s p v `at` p) == v
-
 
 candidates :: Sudoku -> Pos -> [Int]
 candidates s p | isJust (s `at` p) = []
@@ -211,10 +209,22 @@ at s p = (rows s !! fst p) !! snd p
 
 solve :: Sudoku -> Maybe Sudoku
 solve s | not (isSudoku s) || not (isOkay s) = Nothing
-solve s = Just $ solve' s
+        | otherwise                          = solve' s
 
-solve' :: Sudoku -> Sudoku
-solve' s = undefined
+solve' :: Sudoku -> Maybe Sudoku
+solve' s | null bs = Just s
+         | otherwise = listToMaybe . catMaybes $ concat
+         [ [ solve' (update s b (Just c)) | c <- candidates s b] | b <- bs ]
+  where bs = blanks s
+
+
+readAndSolve :: FilePath -> IO ()
+readAndSolve fp =
+  do
+    sud <- readSudoku fp
+    let ssud = solve sud
+    maybe (putStrLn "Failed to solve") printSudoku ssud
+    return ()
 
 -------------------------------------------------------------------------
 
