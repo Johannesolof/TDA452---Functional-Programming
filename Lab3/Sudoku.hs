@@ -221,11 +221,10 @@ solve s | not (isSudoku s) || not (isOkay s) = Nothing
         | otherwise                          = solve' s
 
 solve' :: Sudoku -> Maybe Sudoku
-solve' s | null bs = Just s
-         | otherwise = listToMaybe . catMaybes $ concat
-         [ [ solve' (update s b (Just c)) | c <- candidates s b] | b <- bs ]
-  where bs = blanks s
-
+solve' s  | null bs = Just s
+          | otherwise = listToMaybe $ solve'' $ head bs
+  where bs        = blanks s
+        solve'' b = catMaybes [ solve' (update s b (Just c)) | c <- candidates s b ]
 
 readAndSolve :: FilePath -> IO ()
 readAndSolve fp =
