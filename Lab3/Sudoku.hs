@@ -143,6 +143,23 @@ instance Arbitrary ValidPos where
     c <- elements [0..8]
     return $ ValidPos (r, c)
 
+{-
+  We define our updateAt-properties for the Sudoku case where the list is
+  never empty and the index is always valid and thus we want our test data
+  to fulfill this as well. Also, in our intact property, to make meaningful
+  tests we need the values to differentiate from each other which is why we
+  pick Int as the type. This would otherwise default to unit.
+-}
+data UpdateAtData = UAData [Int] (Int, Int)
+  deriving(Show)
+
+instance Arbitrary UpdateAtData where
+    arbitrary = do
+      ns  <- listOf1 arbitrary
+      i   <- elements [0..(length ns)-1]
+      n   <- arbitrary
+      return $ UAData ns (i, n)
+
 blanks :: Sudoku -> [Pos]
 blanks s = concat [ [ (i,j) | j <- elemIndices Nothing (rows s !! i) ] |
                     i <- [0..8] ]
@@ -154,17 +171,18 @@ prop_blanks s = and [ isNothing (s `at` ps) | ps <- blanks s]
 (!!=) :: [a] -> (Int,a) -> [a]
 (!!=) as (i, a) = take i as ++ [a] ++ drop (i+1) as
 
-prop_updateAt_length :: [a] -> (Int,a) -> Bool
-prop_updateAt_length as (i, a) = length as == length (as !!= (i,a))
+-- Check that lists before and after have the same length
+prop_updateAt_length :: UpdateAtData -> Bool
+prop_updateAt_length (UAData as (i,a)) = length as == length (as !!= (i,a))
+-- Check that the value at i has actually been updated
+prop_updateAt_exist :: UpdateAtData -> Bool
+prop_updateAt_exist (UAData as (i,a)) = (as !!= (i, a)) !! i == a
 
-prop_updateAt_exist :: Eq a => [a] -> (Int,a) -> Bool
-prop_updateAt_exist as (i, a) = a `elem` (as !!= (i, a))
-
--- !!!!!!!!!!!!!!
-prop_updateAt_removed :: Eq a => NonEmptyList a -> (NonNegative Int, a) -> Property
-prop_updateAt_removed (NonEmpty as) (NonNegative i, a) = i <= length as ==> prev as == prev (as !!= (i,a))
+-- Check that all values (except from the updated) that existed in the
+-- list before the update still exists afterwards
+prop_updateAt_intact :: UpdateAtData -> Bool
+prop_updateAt_intact (UAData as (i,a)) = prev as == prev (as !!= (i, a))
   where prev xs = take i xs ++ drop (i+1) xs
-
 
 update :: Sudoku -> Pos -> Maybe Int -> Sudoku
 update s p v = Sudoku $ rows s !!= (fst p, row)
