@@ -12,7 +12,10 @@ import Data.List.Split
 -- * Assignment A
 
 data Sudoku = Sudoku { rows :: [[Maybe Int]] }
- deriving ( Show, Eq )
+ deriving ( Eq )
+
+instance Show Sudoku where
+  show = formatSudoku
 
 -- allBlankSudoku is a sudoku with just blanks
 allBlankSudoku :: Sudoku
@@ -174,6 +177,7 @@ prop_blanks s = and [ isNothing (s `at` ps) | ps <- blanks s]
 -- Check that lists before and after have the same length
 prop_updateAt_length :: UpdateAtData -> Bool
 prop_updateAt_length (UAData as (i,a)) = length as == length (as !!= (i,a))
+
 -- Check that the value at i has actually been updated
 prop_updateAt_exist :: UpdateAtData -> Bool
 prop_updateAt_exist (UAData as (i,a)) = (as !!= (i, a)) !! i == a
@@ -195,6 +199,11 @@ candidates :: Sudoku -> Pos -> [Int]
 candidates s p | isJust (s `at` p) = []
 candidates s p = filter (\i -> Just i `notElem` bs) [1..9]
   where bs = concat $ getBlocksAt s p
+
+prop_candidates :: Sudoku -> ValidPos -> Property
+prop_candidates s (ValidPos p) = (s `at` p) == Nothing && isOkay s ==>
+  and $ map valid $ candidates s p
+    where valid c = isOkay $ update s p (Just c)
 
 getBlocksAt :: Sudoku -> Pos -> [Block]
 getBlocksAt s (r, c) = [bs !! r ,
