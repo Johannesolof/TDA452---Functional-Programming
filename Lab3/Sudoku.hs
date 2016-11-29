@@ -6,6 +6,7 @@ import Data.Char
 import Data.Maybe
 import Data.List
 import Data.List.Split
+import Data.Function
 
 
 -------------------------------------------------------------------------
@@ -159,7 +160,7 @@ data UpdateAtData = UAData [Int] (Int, Int)
 instance Arbitrary UpdateAtData where
     arbitrary = do
       ns  <- listOf1 arbitrary
-      i   <- elements [0..(length ns)-1]
+      i   <- elements [0..length ns - 1]
       n   <- arbitrary
       return $ UAData ns (i, n)
 
@@ -201,7 +202,7 @@ candidates s p = filter (\i -> Just i `notElem` bs) [1..9]
   where bs = concat $ getBlocksAt s p
 
 prop_candidates :: Sudoku -> ValidPos -> Property
-prop_candidates s (ValidPos p) = (s `at` p) == Nothing && isOkay s ==>
+prop_candidates s (ValidPos p) = isNothing (s `at` p) && isOkay s ==>
   and $ map valid $ candidates s p
     where valid c = isOkay $ update s p (Just c)
 
@@ -226,12 +227,28 @@ solve' s  | null bs = Just s
   where bs        = blanks s
         solve'' b = catMaybes [ solve' (update s b (Just c)) | c <- candidates s b ]
 
+solveJ :: Sudoku -> Maybe Sudoku
+solveJ s | not (isSudoku s) || not (isOkay s) = Nothing
+        | otherwise                          = solveJ' s
+
+solveJ' :: Sudoku -> Maybe Sudoku
+solveJ' s | null (blanks s)   = Just s
+          | otherwise = solveCandidates s blank
+  where blank = minimumBy (compare `on` (length . snd)) 
+                [(b, candidates s b) | b <- blanks s]
+
+solveCandidates :: Sudoku -> (Pos, [Int]) -> Maybe Sudoku
+solveCandidates _ (_, []) = Nothing
+solveCandidates s (p, cs) = listToMaybe $ catMaybes 
+                            [solveJ' $ update s p (Just c) | c <- cs]
+
 readAndSolve :: FilePath -> IO ()
 readAndSolve fp =
   do
     sud <- readSudoku fp
-    let ssud = solve sud
-    maybe (putStrLn "Failed to solve") printSudoku ssud
+    printSudoku sud
+    let solvedSud = solveJ sud
+    maybe (putStrLn "Failed to solve") printSudoku solvedSud
     return ()
 
 -------------------------------------------------------------------------
