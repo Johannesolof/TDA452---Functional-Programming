@@ -222,32 +222,22 @@ solve s | not (isSudoku s) || not (isOkay s) = Nothing
         | otherwise                          = solve' s
 
 solve' :: Sudoku -> Maybe Sudoku
-solve' s  | null bs = Just s
-          | otherwise = listToMaybe $ solve'' $ head bs
-  where bs        = blanks s
-        solve'' b = catMaybes [ solve' (update s b (Just c)) | c <- candidates s b ]
-
-solveJ :: Sudoku -> Maybe Sudoku
-solveJ s | not (isSudoku s) || not (isOkay s) = Nothing
-        | otherwise                          = solveJ' s
-
-solveJ' :: Sudoku -> Maybe Sudoku
-solveJ' s | null (blanks s)   = Just s
+solve' s | null (blanks s)   = Just s
           | otherwise = solveCandidates s blank
-  where blank = minimumBy (compare `on` (length . snd)) 
+  where blank = minimumBy (compare `on` (length . snd))
                 [(b, candidates s b) | b <- blanks s]
 
 solveCandidates :: Sudoku -> (Pos, [Int]) -> Maybe Sudoku
 solveCandidates _ (_, []) = Nothing
-solveCandidates s (p, cs) = listToMaybe $ catMaybes 
-                            [solveJ' $ update s p (Just c) | c <- cs]
+solveCandidates s (p, cs) = listToMaybe $ catMaybes
+                            [solve' $ update s p (Just c) | c <- cs]
 
 readAndSolve :: FilePath -> IO ()
 readAndSolve fp =
   do
     sud <- readSudoku fp
     printSudoku sud
-    let solvedSud = solveJ sud
+    let solvedSud = solve sud
     maybe (putStrLn "Failed to solve") printSudoku solvedSud
     return ()
 
