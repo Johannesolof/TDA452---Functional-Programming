@@ -1,7 +1,6 @@
 module Sudoku where
 
 import Test.QuickCheck
-import Test.QuickCheck.Modifiers
 import Data.Char
 import Data.Maybe
 import Data.List
@@ -134,7 +133,7 @@ parseSquares s = [concatMap snd $
         splitSudoku = chunksOf 3 $ concat $ rows s
 
 -------------------------------------------------------------------------
--- * Assignment D
+-- * Assignment E
 
 type Pos = (Int, Int)
 
@@ -157,6 +156,7 @@ instance Arbitrary ValidPos where
 data UpdateAtData = UAData [Int] (Int, Int)
   deriving(Show)
 
+-- Generates a non empty list, a valid index for that list and an arbitrary int
 instance Arbitrary UpdateAtData where
     arbitrary = do
       ns  <- listOf1 arbitrary
@@ -164,18 +164,21 @@ instance Arbitrary UpdateAtData where
       n   <- arbitrary
       return $ UAData ns (i, n)
 
+-- Returns the postions of all blank cells for the given Sudoku
 blanks :: Sudoku -> [Pos]
 blanks s = concat [ [ (i,j) | j <- elemIndices Nothing (rows s !! i) ] |
                     i <- [0..8] ]
 
+-- Check that the postions returned by blanks are actually blank
 prop_blanks :: Sudoku -> Bool
-prop_blanks s = and [ isNothing (s `at` ps) | ps <- blanks s]
+prop_blanks s = and [isNothing (s `at` ps) | ps <- blanks s]
 
-
+-- Updates the value at the given index and returns the resulting list
+-- This operator is referred to as 'updateAt' in the following properties
 (!!=) :: [a] -> (Int,a) -> [a]
 (!!=) as (i, a) = take i as ++ [a] ++ drop (i+1) as
 
--- Check that lists before and after have the same length
+-- Check that lists before and after updateAt have the same length
 prop_updateAt_length :: UpdateAtData -> Bool
 prop_updateAt_length (UAData as (i,a)) = length as == length (as !!= (i,a))
 
@@ -189,52 +192,67 @@ prop_updateAt_intact :: UpdateAtData -> Bool
 prop_updateAt_intact (UAData as (i,a)) = prev as == prev (as !!= (i, a))
   where prev xs = take i xs ++ drop (i+1) xs
 
+-- Update position in sudoku with new value
 update :: Sudoku -> Pos -> Maybe Int -> Sudoku
 update s p v = Sudoku $ rows s !!= (fst p, row)
   where row = rows s !! fst p !!= (snd p, v)
 
+-- Check that the value is actually updated after update
 prop_update :: Sudoku -> ValidPos -> Maybe Int -> Bool
 prop_update s (ValidPos p) v = (update s p v `at` p) == v
 
+-- Returns the possible values that could be assinged to pos without
+-- making the Sudoku invalid
 candidates :: Sudoku -> Pos -> [Int]
 candidates s p | isJust (s `at` p) = []
 candidates s p = filter (\i -> Just i `notElem` bs) [1..9]
   where bs = concat $ getBlocksAt s p
 
+-- Check that none of the candidates makes the Sudoku invalid
 prop_candidates :: Sudoku -> ValidPos -> Property
 prop_candidates s (ValidPos p) = isNothing (s `at` p) && isOkay s ==>
   and $ map valid $ candidates s p
     where valid c = isOkay $ update s p (Just c)
 
+-- Returns the row, column and 3x3 block connected to the given pos
 getBlocksAt :: Sudoku -> Pos -> [Block]
 getBlocksAt s (r, c) = [bs !! r ,
                       bs !! (9 + c),
                       bs !! (18 + ((r `div` 3) * 3 + (c `div` 3)))]
   where bs = blocks s
 
+-- Returns the value at pos from the given Sudoku
 at :: Sudoku -> Pos -> Maybe Int
 at s p = (rows s !! fst p) !! snd p
 
 ------------------------------------------------------------------------------
+-- * Assignment F
 
+-- Helper function that checks both structure and values for a Sudoku
 isValidSud :: Sudoku -> Bool
 isValidSud s = isSudoku s && isOkay s
 
+-- Attempts to solve a sudoku
 solve :: Sudoku -> Maybe Sudoku
 solve s | isValidSud s = solve' s
         | otherwise    = Nothing
 
+-- Helper function for solve that does the actual solving
+-- Optimization: builds the solution by picking the blank with
+-- the least candidates in each step
 solve' :: Sudoku -> Maybe Sudoku
 solve' s | null (blanks s)   = Just s
          | otherwise = solveCandidates s blank
   where blank = minimumBy (compare `on` (length . snd))
                 [(b, candidates s b) | b <- blanks s]
 
+-- Builds a solution from the given pos and its candidates as starting point
 solveCandidates :: Sudoku -> (Pos, [Int]) -> Maybe Sudoku
 solveCandidates _ (_, []) = Nothing
 solveCandidates s (p, cs) = listToMaybe $ catMaybes
                             [solve' $ update s p (Just c) | c <- cs]
 
+-- Reads Sudoku from file and tries to solve it
 readAndSolve :: FilePath -> IO ()
 readAndSolve fp =
   do
@@ -244,20 +262,24 @@ readAndSolve fp =
     maybe (putStrLn "Failed to solve") printSudoku solvedSud
     return ()
 
+-- Helper function, checks whether there are still blanks in a Sudoku
 noBlanks :: Sudoku -> Bool
 noBlanks = null . blanks
 
+-- Checks whether the first Sudoku is a valid solution to the second one
 isSolutionOf :: Sudoku -> Sudoku -> Bool
 isSolutionOf sol org | isValidSud sol && noBlanks sol = compareSols
                      | otherwise                      = False
    where compareSols = sol == fillBlanks sol org
 
+-- Fills the blanks in the second sud with corresponding values in the first one
 fillBlanks :: Sudoku -> Sudoku -> Sudoku
 fillBlanks sol org | noBlanks org = org
                    | otherwise = fillBlanks (update org pos val) sol
    where pos = head $ blanks org
          val = sol `at` pos
 
+-- Check that solve only produces valid solutions
 prop_SolveSound :: Sudoku -> Property
 prop_SolveSound s = isValidSud s ==> fromJust (solve s) `isSolutionOf` s
 
