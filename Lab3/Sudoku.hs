@@ -217,13 +217,16 @@ at s p = (rows s !! fst p) !! snd p
 
 ------------------------------------------------------------------------------
 
+isValidSud :: Sudoku -> Bool
+isValidSud s = isSudoku s && isOkay s
+
 solve :: Sudoku -> Maybe Sudoku
-solve s | not (isSudoku s) || not (isOkay s) = Nothing
-        | otherwise                          = solve' s
+solve s | isValidSud s = solve' s
+        | otherwise    = Nothing
 
 solve' :: Sudoku -> Maybe Sudoku
 solve' s | null (blanks s)   = Just s
-          | otherwise = solveCandidates s blank
+         | otherwise = solveCandidates s blank
   where blank = minimumBy (compare `on` (length . snd))
                 [(b, candidates s b) | b <- blanks s]
 
@@ -240,6 +243,24 @@ readAndSolve fp =
     let solvedSud = solve sud
     maybe (putStrLn "Failed to solve") printSudoku solvedSud
     return ()
+
+noBlanks :: Sudoku -> Bool
+noBlanks = null . blanks
+
+isSolutionOf :: Sudoku -> Sudoku -> Bool
+isSolutionOf sol org | isValidSud sol && noBlanks sol = compareSols
+                     | otherwise                      = False
+   where compareSols = sol == fillBlanks sol org
+
+fillBlanks :: Sudoku -> Sudoku -> Sudoku
+fillBlanks sol org | noBlanks org = org
+                   | otherwise = fillBlanks (update org pos val) sol
+   where pos = head $ blanks org
+         val = sol `at` pos
+
+prop_SolveSound :: Sudoku -> Property
+prop_SolveSound s = isValidSud s ==> fromJust (solve s) `isSolutionOf` s
+
 
 -------------------------------------------------------------------------
 
