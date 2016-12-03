@@ -45,12 +45,9 @@ printSudoku s = do
 
 -- Formats Sudoku data type into a string representation
 formatSudoku :: Sudoku -> String
-formatSudoku s = unlines $ map (map maybeToChar) (rows s)
-
--- Formats Maybe Int into char representation
-maybeToChar :: Maybe Int -> Char
-maybeToChar (Just n)  = chr (n+offset)
-maybeToChar Nothing   = '.'
+formatSudoku s = unlines $ map (map toChar) (rows s)
+  where toChar (Just i) = intToDigit i
+        toChar Nothing  = '.'
 
 -- readSudoku file reads from the file, and either delivers it, or stops
 -- if the file did not contain a sudoku
@@ -61,22 +58,9 @@ readSudoku fp = do
 
 -- Parses data from a string into Sudoku data type
 parseSudoku :: String -> Sudoku
-parseSudoku str =  Sudoku $ map (map charToMaybe) $ lines str
-
--- Converts a character into an Maybe integer
-charToMaybe :: Char -> Maybe Int
-charToMaybe c | n > min && n < max = Just (n - offset)
-              | n == dot           = Nothing
-              | otherwise          = error
-                                     ("Not a valid Sudoku character: " ++ [c])
-  where n = ord c
-        min = offset
-        max = offset + 10
-        dot = offset - 2
-
--- Helper function character parsing
-offset :: Int
-offset = ord '0'
+parseSudoku str =  Sudoku $ map (map toInt) $ lines str
+  where toInt '.' = Nothing
+        toInt c   = Just $ digitToInt c
 
 -------------------------------------------------------------------------
 -- * Assignment C
@@ -122,7 +106,30 @@ isOkayBlock b = length fb == length (nub fb)
 blocks :: Sudoku -> [Block]
 blocks s = concat [rows s, cols, squares]
   where cols    = transpose $ rows s
-        squares = parseSquares s
+        squares = parseSquares' s
+
+-- Parses and returns all 3x3 blocks in a Sudoku
+{- Procedure:
+    1. Split Sudoku in triplets of rows
+    2. Split each row in triplets of cells
+    3. Index the cell-triplets from 0 - 2
+    4. Sort the cell-triplets
+    5. Merge triplets of cell-triplets to get valid blocks
+    6. Repeat for each triplet of rows
+-}
+parseSquares' :: Sudoku -> [Block]
+parseSquares' s = concat $ map3 parse $ rows s
+  where parse  = merge . sort . index . split'
+        split' = map (map3 id)
+        index  = concatMap (zip [0..2])
+        merge  = map3 (concatMap snd)
+
+-- Map function that maps over 3 elements in each step instead of 1
+map3 :: ([a] -> b) -> [a] -> [b]
+map3 fn as = map3' fn as []
+  where map3' _fn' [] bs = reverse bs
+        map3' fn' as' bs = map3' fn' (drop 3 as') $ fn' (take 3 as') : bs
+
 
 -- Parses and returns all 3x3 blocks in a Sudoku
 parseSquares :: Sudoku -> [Block]
