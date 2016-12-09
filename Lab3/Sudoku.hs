@@ -130,15 +130,6 @@ map3 fn as = map3' fn as []
   where map3' _fn' [] bs = reverse bs
         map3' fn' as' bs = map3' fn' (drop 3 as') $ fn' (take 3 as') : bs
 
-
--- Parses and returns all 3x3 blocks in a Sudoku
-parseSquares :: Sudoku -> [Block]
-parseSquares s = [concatMap snd $
-                  filter (\x -> fst x == i) zipped | i <- [0..8]]
-  where zipped = zip indices splitSudoku
-        indices = [ i `mod` 3 + 3 * (i `div` 9) | i <- [0..26]]
-        splitSudoku = chunksOf 3 $ concat $ rows s
-
 -------------------------------------------------------------------------
 -- * Assignment E
 
@@ -201,8 +192,8 @@ prop_updateAt_intact (UAData as (i,a)) = prev as == prev (as !!= (i, a))
 
 -- Update position in sudoku with new value
 update :: Sudoku -> Pos -> Maybe Int -> Sudoku
-update s p v = Sudoku $ rows s !!= (fst p, row)
-  where row = rows s !! fst p !!= (snd p, v)
+update s (x, y) v = Sudoku $ rows s !!= (x, row)
+  where row = rows s !! x !!= (y, v)
 
 -- Check that the value is actually updated after update
 prop_update :: Sudoku -> ValidPos -> Maybe Int -> Bool
@@ -277,12 +268,12 @@ noBlanks = null . blanks
 isSolutionOf :: Sudoku -> Sudoku -> Bool
 isSolutionOf sol org | isValidSud sol && noBlanks sol = compareSols
                      | otherwise                      = False
-   where compareSols = sol == fillBlanks sol org
+   where compareSols = sol == (fillBlanks sol org)
 
 -- Fills the blanks in the second sud with corresponding values in the first one
 fillBlanks :: Sudoku -> Sudoku -> Sudoku
 fillBlanks sol org | noBlanks org = org
-                   | otherwise = fillBlanks (update org pos val) sol
+                   | otherwise = fillBlanks sol (update org pos val)
    where pos = head $ blanks org
          val = sol `at` pos
 
