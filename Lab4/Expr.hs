@@ -67,7 +67,7 @@ showExpr :: Expr -> String
 showExpr  EVar          = show "x"
 showExpr (ENum n)       = show n
 showExpr (EOp e1 op e2) = concat [showEnclose e1 op, show op, showEnclose e2 op]
-showExpr (EFun f e)     = concat [show f, spc, showEnclose e Mul]
+showExpr (EFun f e)     = concat [show f, spc, enclose (showExpr e)]
 -- Enclose fun expression if precedence is lower than mul
 
 -- Encloses expression if needed depending on precedence
@@ -105,6 +105,10 @@ eval (EFun Cos e) v     = cos $ eval e v
 var :: Parser Expr
 var = do _ <- char 'x' 
          return EVar
+      <|> 
+      do _ <- char '-'
+         _ <- char 'x'
+         return $ EOp (ENum (-1)) Mul EVar
 
 double :: Parser Double
 double = do ds <- oneOrMore digit
@@ -123,14 +127,31 @@ num = do _ <- char '-'
       do d <- double
          return $ ENum d
 
+string :: String -> Parser String
+string [] = return []
+string (c:cs) = do char c 
+                   string cs
+                   return (c:cs)
+
+fun :: Parser Fun
+fun = do string "sin"
+         return Sin
+      <|> 
+      do string "cos"
+         return Cos
+
+
+function :: Parser Expr
+function = do f <- fun
+              e <- expr
+              return $ EFun f e
+
 expr :: Parser Expr
 expr = do t <- term
           _ <- char '+'
           e <- expr
           return $ EOp t Add e
         <|> term
-
-
 
 term :: Parser Expr
 term  = do f <- factor
@@ -140,13 +161,12 @@ term  = do f <- factor
         <|> factor
 
 factor :: Parser Expr
-factor = do _ <- char '('
+factor = function <|>
+         do _ <- char '('
             e <- expr
             _ <- char ')'
             return e
-         <|>  var <|> num
-
-
+         <|> var <|> num
 
 
 readExpr :: String -> Maybe Expr
