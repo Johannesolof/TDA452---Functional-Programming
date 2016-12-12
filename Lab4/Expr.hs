@@ -1,6 +1,9 @@
 module Expr where
 
 import Test.QuickCheck
+import GHC.Unicode
+
+import Parsing
 
 -- * Assignment A
 
@@ -89,11 +92,68 @@ eval (EFun Sin e) v     = sin $ eval e v
 eval (EFun Cos e) v     = cos $ eval e v
 
 
--- * Assignment C
+-- * Assignment D
+
+{-
+< expression > ::= < term > + < expression > | < term >
+< term > ::= < factor > * < term > | < factor >
+< function > ::= < id > (< expression >)
+< id > ::= sin | cos
+< factor > ::= < function > | (< expression >) | < double > | < var >
+-}
+
+var :: Parser Expr
+var = do _ <- char 'x' 
+         return EVar
+
+double :: Parser Double
+double = do ds <- oneOrMore digit
+            _ <- char '.'
+            dcs <- oneOrMore digit
+            return $ read ds + read dcs / (10 ^ length dcs)
+         <|> 
+         do ds <- oneOrMore digit
+            return $ read ds
+
+num :: Parser Expr
+num = do _ <- char '-'
+         d <- double
+         return $ ENum (negate d)
+      <|>
+      do d <- double
+         return $ ENum d
+
+expr :: Parser Expr
+expr = do t <- term
+          _ <- char '+'
+          e <- expr
+          return $ EOp t Add e
+        <|> term
+
+
+
+term :: Parser Expr
+term  = do f <- factor
+           _ <- char '*'
+           t <- term
+           return $ EOp f Mul t
+        <|> factor
+
+factor :: Parser Expr
+factor = do _ <- char '('
+            e <- expr
+            _ <- char ')'
+            return e
+         <|>  var <|> num
+
+
+
 
 readExpr :: String -> Maybe Expr
-readExpr s = undefined
-
+readExpr s = case parse expr s' of
+                  Just (e,"") -> Just e
+                  _           -> Nothing
+  where s' = filter (not . isSpace) s
 
 -- * Expression generators
 
