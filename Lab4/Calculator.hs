@@ -14,8 +14,20 @@ import Expr
 canWidth  = 300
 canHeight = 300
 
+-- * Assignment I
+
 readAndDraw :: Elem -> Canvas -> IO ()
-readAndDraw = undefined
+readAndDraw input can = do
+  s <- getProp input "value"
+  render can $ getPic s
+  return ()
+
+
+getPic :: String -> Picture ()
+getPic s = case readExpr s of
+  Just e -> stroke . path $ points e 0.04 (canWidth, canHeight)
+  _      -> text (0,0) ""
+
 
 main = do
     -- Elements
@@ -50,10 +62,8 @@ main = do
 points :: Expr -> Double -> (Int,Int) -> [Point]
 points e s (w,h) = points' [] 0
   where
-    pixToReal :: Double -> Double
-    pixToReal x =  x - s / 2 * fromIntegral w
-    realToPix :: Double -> Double
-    realToPix y = -y + s / 2 * fromIntegral h
+    pixToReal x = (x - 0.5 * fromIntegral w) * s
+    realToPix y = (-y + s * 0.5 * fromIntegral h) / s
     points' ps x | x <= w    = points' (p:ps) (x+1)
                  | otherwise = reverse ps
       where

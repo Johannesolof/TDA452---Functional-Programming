@@ -192,11 +192,11 @@ differentiate = simplify . differentiate'
 
 differentiate' :: Expr -> Expr
 differentiate' EVar = ENum 1
-differentiate' (ENum _) = ENum 0 
-differentiate' (EOp e1 Add e2) = EOp (differentiate e1) Add 
+differentiate' (ENum _) = ENum 0
+differentiate' (EOp e1 Add e2) = EOp (differentiate e1) Add
                                      (differentiate e2)
-differentiate' (EOp e1 Mul e2) = EOp (EOp (differentiate e1) Mul e2) Add 
+differentiate' (EOp e1 Mul e2) = EOp (EOp (differentiate e1) Mul e2) Add
                                      (EOp e1 Mul (differentiate e2))
 differentiate' (EFun Sin e) = EOp (differentiate e) Mul (EFun Cos e)
-differentiate' (EFun Cos e) = EOp (differentiate e) Mul 
+differentiate' (EFun Cos e) = EOp (differentiate e) Mul
                                   (EOp (ENum (-1)) Mul (EFun Sin e))
