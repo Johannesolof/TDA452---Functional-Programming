@@ -4,6 +4,7 @@ import Haste hiding (eval)
 import Haste.DOM
 import Haste.Events
 import Haste.Graphics.Canvas
+import Data.Maybe
 
 import Pages
 
@@ -14,50 +15,60 @@ import Expr
 canWidth  = 300
 canHeight = 300
 
--- * Assignment I
-
-readAndDraw :: Elem -> Canvas -> IO ()
-readAndDraw input can = do
-  s <- getProp input "value"
-  render can $ getPic s
+readAndDraw :: Elem -> Elem -> Canvas -> IO ()
+readAndDraw fi si can = do
+  fs <- getProp fi "value"
+  ss <- getProp si "value"
+  render can $ drawFun fs ss
   return ()
 
+drawFun :: String -> String -> Picture ()
+drawFun fs ss = case readExpr fs of
+  Just e -> stroke . path $ points e (read ss) (canWidth, canHeight)
+  _      -> text (0,0) "" -- Draw nothing when invalid expression
 
-getPic :: String -> Picture ()
-getPic s = case readExpr s of
-  Just e -> stroke . path $ points e 0.04 (canWidth, canHeight)
-  _      -> text (0,0) ""
-
+diffFun :: Elem -> IO ()
+diffFun fi = do
+  fs <- getProp fi "value"
+  setProp fi "value" $ showExpr $ differentiate $ fromJust $ readExpr fs
 
 main = do
     -- Elements
-    canvas  <- mkCanvas canWidth canHeight   -- The drawing area
-    fx      <- mkHTML "<i>f</i>(<i>x</i>)="  -- The text "f(x)="
-    input   <- mkInput 20 "x"                -- The formula input
-    draw    <- mkButton "Draw graph"         -- The draw button
+    canvas  <- mkCanvas canWidth canHeight    -- The drawing area
+    fx      <- mkHTML "<i>f</i>(<i>x</i>)="   -- The text "f(x)="
+    scl     <- mkHTML "<i>scale</i>="
+    fInput  <- mkInput 20 "x"                 -- The formula input
+    sInput  <- mkInput 20 "0.04"
+    draw    <- mkButton "Draw graph"          -- The draw button
+    diff    <- mkButton "Differentiate"        -- The differentiate button
       -- The markup "<i>...</i>" means that the text inside should be rendered
       -- in italics.
 
     -- Layout
     formula <- mkDiv
-    row formula [fx,input]
-    column documentBody [canvas,formula,draw]
+    scale <- mkDiv
+    buttons <- mkDiv
+    row formula [fx,fInput]
+    row scale   [scl,sInput]
+    row buttons [diff, draw]
+    column documentBody [canvas,formula,scale,buttons]
 
     -- Styling
     setStyle documentBody "backgroundColor" "lightblue"
     setStyle documentBody "textAlign" "center"
-    setStyle input "fontSize" "14pt"
-    focus input
-    select input
+    setStyle fInput "fontSize" "14pt"
+    setStyle sInput "fontSize" "14pt"
+    focus fInput
+    select fInput
 
     -- Interaction
     Just can <- getCanvas canvas
-    onEvent draw  Click $ \_    -> readAndDraw input can
-    onEvent input KeyUp $ \code -> when (code==13) $ readAndDraw input can
-      -- "Enter" key has code 13
+    onEvent draw  Click $ \_     -> readAndDraw fInput sInput can
+    onEvent diff  Click $ \_     -> diffFun fInput
+    onEvent fInput KeyUp $ \code ->
+      when (code==13) $ readAndDraw fInput sInput can
+    -- "Enter" key has code 13
 
-
--- * Assignment H
 
 points :: Expr -> Double -> (Int,Int) -> [Point]
 points e s (w,h) = points' [] 0
