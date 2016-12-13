@@ -1,7 +1,6 @@
 module Expr where
 
 import GHC.Unicode
-import Data.Maybe
 
 import Parsing
 
@@ -111,21 +110,8 @@ var = do _ <- char 'x'
          _ <- char 'x'
          return $ EOp (ENum (-1)) Mul EVar
 
-double :: Parser Double
-double = do ds <- oneOrMore digit
-            _ <- char '.'
-            dcs <- oneOrMore digit
-            return $ read ds + read dcs / (10 ^ length dcs)
-         <|>
-         do ds <- oneOrMore digit
-            return $ read ds
-
 num :: Parser Expr
-num = do _ <- char '-'
-         d <- double
-         return $ ENum (negate d)
-      <|>
-      do d <- double
+num = do d <- readsP
          return $ ENum d
 
 string :: String -> Parser String
@@ -143,9 +129,9 @@ fun = do string "sin"
 
 
 function :: Parser Expr
-function = do fun <- fun
+function = do fu <- fun
               f <- factor
-              return $ EFun fun f
+              return $ EFun fu f
 
 expr :: Parser Expr
 expr = do t <- term
@@ -175,3 +161,42 @@ readExpr s = case parse expr s' of
                   Just (e,"") -> Just e
                   _           -> Nothing
   where s' = filter (not . isSpace) s
+
+-- * Assignment F
+
+simplify :: Expr -> Expr
+simplify (EOp e1 Add e2) = case (simplify e1, simplify e2) of
+                                (ENum d1, ENum d2) -> ENum (d1 + d2)
+                                (se1, ENum 0)      -> se1
+                                (ENum 0, se2)      -> se2
+                                (se1, se2)         -> EOp se1 Add se2
+simplify (EOp e1 Mul e2) = case (simplify e1, simplify e2) of
+                                (ENum d1, ENum d2) -> ENum (d1 * d2)
+                                (ENum 0, _)        -> ENum 0
+                                (_, ENum 0)        -> ENum 0
+                                (se1, ENum 1)      -> se1
+                                (ENum 1, se2)      -> se2
+                                (se1, se2)         -> EOp se1 Mul se2
+simplify (EFun Sin e1) = case simplify e1 of
+                              ENum d -> ENum (sin d)
+                              se1    -> EFun Sin se1
+simplify (EFun Cos e1) = case simplify e1 of
+                              ENum d -> ENum (cos d)
+                              se1    -> EFun Cos se1
+simplify e = e
+
+
+-- * Assignment G
+differentiate :: Expr -> Expr
+differentiate = simplify . differentiate'
+
+differentiate' :: Expr -> Expr
+differentiate' EVar = ENum 1
+differentiate' (ENum _) = ENum 0 
+differentiate' (EOp e1 Add e2) = EOp (differentiate e1) Add 
+                                     (differentiate e2)
+differentiate' (EOp e1 Mul e2) = EOp (EOp (differentiate e1) Mul e2) Add 
+                                     (EOp e1 Mul (differentiate e2))
+differentiate' (EFun Sin e) = EOp (differentiate e) Mul (EFun Cos e)
+differentiate' (EFun Cos e) = EOp (differentiate e) Mul 
+                                  (EOp (ENum (-1)) Mul (EFun Sin e))

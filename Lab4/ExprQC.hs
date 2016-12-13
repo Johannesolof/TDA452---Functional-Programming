@@ -10,6 +10,11 @@ prop_ShowReadExpr :: Expr -> Bool
 prop_ShowReadExpr e = show e == show e'
   where e' = fromJust $ readExpr $ show e
 
+prop_SimplifyEval :: Expr -> Double -> Bool
+prop_SimplifyEval e d = eval e d == eval (simplify e) d
+
+prop_SimplifyLength :: Expr -> Bool
+prop_SimplifyLength = undefined
 
 -- * Expression generators
 
