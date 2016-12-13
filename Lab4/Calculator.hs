@@ -44,3 +44,18 @@ main = do
     onEvent input KeyUp $ \code -> when (code==13) $ readAndDraw input can
       -- "Enter" key has code 13
 
+
+-- * Assignment H
+
+points :: Expr -> Double -> (Int,Int) -> [Point]
+points e s (w,h) = points' [] 0
+  where
+    pixToReal :: Double -> Double
+    pixToReal x =  x - s / 2 * fromIntegral w
+    realToPix :: Double -> Double
+    realToPix y = -y + s / 2 * fromIntegral h
+    points' ps x | x <= w    = points' (p:ps) (x+1)
+                 | otherwise = reverse ps
+      where
+        x' = fromIntegral x
+        p  = (x', realToPix $ eval e (pixToReal x'))
