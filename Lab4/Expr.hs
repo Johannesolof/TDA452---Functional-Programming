@@ -47,10 +47,6 @@ instance Show Op where
 instance Show Fun where
   show = showFun
 
--- Returns a blank space as string
-spc :: String
-spc = " "
-
 -- Encloses a string in paranthesis
 enclose :: String -> String
 enclose s = concat ["(", s, ")"]
@@ -61,21 +57,26 @@ showOp Add = " + "
 showOp Mul = " * "
 
 showFun :: Fun -> String
-showFun Sin = "sin"
-showFun Cos = "cos"
+showFun Sin = "sin "
+showFun Cos = "cos "
 
 showExpr :: Expr -> String
 showExpr  EVar          = show "x"
 showExpr (ENum n)       = show n
-showExpr (EOp e1 op e2) = concat [showEnclose e1 op, show op, showEnclose e2 op]
-showExpr (EFun f e)     = concat [show f, spc, enclose (showExpr e)]
+showExpr (EOp e1 op e2) = concat [showEOp e1 op, show op, showEOp e2 op]
+showExpr (EFun f e)     = show f ++ showEFun e
 -- Enclose fun expression if precedence is lower than mul
 
 -- Encloses expression if needed depending on precedence
 -- Note:  c = child,   p = parent
-showEnclose :: Expr -> Op -> String
-showEnclose (EOp e1 c e2) p | p `prec` c = enclose $ showExpr (EOp e1 c e2)
-showEnclose e _                          = showExpr e
+showEOp :: Expr -> Op -> String
+showEOp (EOp e1 c e2) p | p `prec` c = enclose $ showExpr (EOp e1 c e2)
+showEOp e _                          = showExpr e
+
+-- Encloses expression if needed depending on sub expression
+showEFun :: Expr -> String
+showEFun (EOp e1 op e2) = enclose $ showExpr (EOp e1 op e2)
+showEFun  e             = showExpr e
 
 -- Returns whether first op has higher precedence than second op
 prec :: Op -> Op -> Bool
@@ -104,9 +105,9 @@ eval (EFun Cos e) v     = cos $ eval e v
 -}
 
 var :: Parser Expr
-var = do _ <- char 'x' 
+var = do _ <- char 'x'
          return EVar
-      <|> 
+      <|>
       do _ <- char '-'
          _ <- char 'x'
          return $ EOp (ENum (-1)) Mul EVar
@@ -116,7 +117,7 @@ double = do ds <- oneOrMore digit
             _ <- char '.'
             dcs <- oneOrMore digit
             return $ read ds + read dcs / (10 ^ length dcs)
-         <|> 
+         <|>
          do ds <- oneOrMore digit
             return $ read ds
 
@@ -130,14 +131,14 @@ num = do _ <- char '-'
 
 string :: String -> Parser String
 string [] = return []
-string (c:cs) = do char c 
+string (c:cs) = do char c
                    string cs
                    return (c:cs)
 
 fun :: Parser Fun
 fun = do string "sin"
          return Sin
-      <|> 
+      <|>
       do string "cos"
          return Cos
 
