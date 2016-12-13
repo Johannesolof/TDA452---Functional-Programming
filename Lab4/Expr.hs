@@ -2,6 +2,7 @@ module Expr where
 
 import Test.QuickCheck
 import GHC.Unicode
+import Data.Maybe
 
 import Parsing
 
@@ -97,7 +98,7 @@ eval (EFun Cos e) v     = cos $ eval e v
 {-
 < expression > ::= < term > + < expression > | < term >
 < term > ::= < factor > * < term > | < factor >
-< function > ::= < id > (< expression >)
+< function > ::= < id > < factor >
 < id > ::= sin | cos
 < factor > ::= < function > | (< expression >) | < double > | < var >
 -}
@@ -142,9 +143,9 @@ fun = do string "sin"
 
 
 function :: Parser Expr
-function = do f <- fun
-              e <- expr
-              return $ EFun f e
+function = do fun <- fun
+              f <- factor
+              return $ EFun fun f
 
 expr :: Parser Expr
 expr = do t <- term
@@ -175,6 +176,11 @@ readExpr s = case parse expr s' of
                   _           -> Nothing
   where s' = filter (not . isSpace) s
 
+prop_ShowReadExpr :: Expr -> Bool
+prop_ShowReadExpr e = show e == show e'
+  where e' = fromJust $ readExpr $ show e
+
+
 -- * Expression generators
 
 -- Reduces level, used to control size of samples
@@ -202,3 +208,6 @@ rFun s = do
   f <- elements [fstFun..]
   e <- rExpr s'
   return $ EFun f e
+
+instance Arbitrary Expr where
+  arbitrary = sized rExpr
