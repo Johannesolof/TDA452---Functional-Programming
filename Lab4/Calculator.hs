@@ -36,11 +36,11 @@ main = do
     -- Elements
     canvas  <- mkCanvas canWidth canHeight    -- The drawing area
     fx      <- mkHTML "<i>f</i>(<i>x</i>)="   -- The text "f(x)="
-    scl     <- mkHTML "<i>scale</i>="
+    scl     <- mkHTML "<i>scale</i>="         -- The text "scale"
     fInput  <- mkInput 20 "x"                 -- The formula input
-    sInput  <- mkInput 20 "0.04"
+    sInput  <- mkInput 20 "0.04"              -- The scaling input
     draw    <- mkButton "Draw graph"          -- The draw button
-    diff    <- mkButton "Differentiate"        -- The differentiate button
+    diff    <- mkButton "Differentiate"       -- The differentiate button
       -- The markup "<i>...</i>" means that the text inside should be rendered
       -- in italics.
 
