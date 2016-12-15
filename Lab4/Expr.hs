@@ -59,7 +59,7 @@ showFun Sin = "sin "
 showFun Cos = "cos "
 
 showExpr :: Expr -> String
-showExpr  EVar          = show "x"
+showExpr  EVar          = "x"
 showExpr (ENum n)       = show n
 showExpr (EOp e1 op e2) = concat [showEOp e1 op, show op, showEOp e2 op]
 showExpr (EFun f e)     = show f ++ showEFun e

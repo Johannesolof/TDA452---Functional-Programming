@@ -58,6 +58,8 @@ main = do
     setStyle documentBody "textAlign" "center"
     setStyle fInput "fontSize" "14pt"
     setStyle sInput "fontSize" "14pt"
+    setStyle sInput "margin" "5px"
+    setStyle fInput "margin" "5px"
     focus fInput
     select fInput
 
